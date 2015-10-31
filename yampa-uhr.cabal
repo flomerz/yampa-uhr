@@ -24,7 +24,7 @@ executable yampa-uhr
                        , colour >=2.0
                        , text
                        , sdl2 >=2.0
-                       , sdl2-ttf >= 0.2.2
+                       , sdl2-ttf
                        , data-default
                        , linear
                        , vector

@@ -7,6 +7,7 @@ module Shapes
     , circle_
     , line_
     , rectangle_
+    , text_
     , pos_
     , colour_
     , Colour(..)
@@ -18,12 +19,14 @@ import Data.Default
 import Data.Colour
 import Data.Colour.SRGB
 import Data.Colour.Names
+import Data.Text (Text)
 
 type Frame = Object
 
 data Shape = Circle Int
            | Rectangle Int Int
            | Line Int Double
+           | TextRectangle Int Int Text
            | Scene [Object] -- ^ Not really a shape
            deriving (Show, Eq)
 
@@ -55,6 +58,9 @@ rectangle_ x y = def { objShape = Rectangle (round x) (round y) }
 
 line_ :: Int -> Double -> Object
 line_ length_ angle = def { objShape = Line length_ angle }
+
+text_ :: Double -> Double -> Text -> Object
+text_ x y txt = def { objShape = TextRectangle (round x) (round y) txt }
 
 type AttributeSetter = Object -> Object
 

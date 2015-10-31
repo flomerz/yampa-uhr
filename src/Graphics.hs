@@ -18,11 +18,8 @@ import           Linear.Affine (Point(..))
 import Foreign.C.Types
 import Data.Time
 
-import SDL as SDL hiding (Event, Rectangle) 
 import qualified SDL
-import SDL.Raw.Types as SDLT (Color(..), Surface(..))
-import qualified Graphics.UI.SDL.TTF as TTF
-import Graphics.UI.SDL.TTF.Types as TTF
+import qualified SDL.Font as Font
 
 import Shapes
 import Types
@@ -38,6 +35,7 @@ animate :: Text                -- ^ window title
         -> IO ()
 animate title winWidth winHeight sf = do
     SDL.initialize [SDL.InitVideo]
+    Font.initialize
     window <- SDL.createWindow title windowConf
     SDL.showWindow window
 
@@ -76,6 +74,7 @@ animate title winWidth winHeight sf = do
 
     SDL.destroyRenderer renderer
     SDL.destroyWindow window
+    Font.quit
     SDL.quit
 
     where windowConf =
@@ -85,25 +84,22 @@ animate title winWidth winHeight sf = do
 renderObject :: SDL.Renderer -> Int -> Object -> IO ()
 renderObject renderer winHeight obj = setRenderAttrs >> renderShape
     where setRenderAttrs = do
-              let (RGB r g b) = toSRGB24 $ objColour obj
               SDL.rendererDrawColor renderer $= V4 r g b maxBound
           renderShape = case objShape obj of
               Rectangle x y -> (SDL.fillRect renderer $ Just $
                                      SDL.Rectangle (P (V2 (toEnum $ floor px)
                                                           (toEnum $ winHeight - floor py)))
                                                    (V2 (toEnum x) (toEnum y)))
-              Line _ _ -> do 
-                  SDL.drawLine renderer (P (V2 (n px) (n py))) (P (lineTargetV2 obj)) 
-                -- SDL.copy :: SDL.Renderer
-                --         -> SDL.Texture
-                --         -> Maybe (SDL.Rectangle CInt)
-                --         -> Maybe (SDL.Rectangle CInt)
-                --         -> IO ()
-                  font <- TTF.openFont "/usr/share/fonts/truetype/ubuntu-font-family/Ubuntu-B.ttf" 18
-                  -- textSurface <- TTF.renderTextSolid font "IUUUU" $ Color 105 125 98 0
-                  -- textTexture <- SDL.createTextureFromSurface renderer (SDL.Surface textSurface::SDLT.Surface)
-                  -- SDL.copy renderer textTexture Nothing Nothing
-                  return ()
+              Line _ _ -> SDL.drawLine renderer (P (V2 (n px) (toEnum $ winHeight - floor py))) (P (lineTargetV2 obj winHeight))
+              TextRectangle x y txt -> do
+                  font <- Font.load "/usr/share/fonts/truetype/ubuntu-font-family/Ubuntu-B.ttf" 18
+                  textSurface <- Font.solid font (V4 r g b maxBound) txt
+                  Font.free font
+                  textTexture <- SDL.createTextureFromSurface renderer textSurface
+                  SDL.freeSurface textSurface
+                  SDL.copy renderer textTexture Nothing (Just $ SDL.Rectangle (P (V2 (toEnum $ floor px)
+                                                          (toEnum $ winHeight - floor py)))
+                                                          (V2 (toEnum x) (toEnum y)))
               Scene objs -> do
                   SDL.clear renderer
                   mapM_ (renderObject renderer winHeight) objs
@@ -112,15 +108,20 @@ renderObject renderer winHeight obj = setRenderAttrs >> renderShape
                                 translate (floor px, winHeight - floor py) $
                                 rasterCircle  r
           (px, py) = objPos obj
+          (RGB r g b) = toSRGB24 $ objColour obj
 
 n = toEnum . floor
 
-lineTargetV2 :: Object -> V2 CInt
-lineTargetV2 obj = (V2 (toEnum$round (px+((sin angle)*(fromIntegral length_))))
-                       (toEnum$round (py+((cos angle)*(fromIntegral length_)))))
-
+lineTargetV2 :: Object -> Int -> V2 CInt
+lineTargetV2 obj winHeight = (V2 (toEnum$round (px+((sin angle)*(fromIntegral length_))))
+                       (toEnum$winHeight - (round (py+((cos angle)*(fromIntegral length_))))))
   where (px, py) = objPos obj
         Line length_ angle = objShape obj
+
+
+-- | A helper for unmanaged 'Surface's, since it is not exposed by SDL itself.
+pSurface :: Ptr SDL.Raw.Surface -> Surface
+pSurface p = Surface p Nothing
 
 -- copyEx :: MonadIO m   
 -- => Renderer -- The rendering context
