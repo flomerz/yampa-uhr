@@ -6,7 +6,7 @@ module Graphics
 import           Control.Concurrent
 import           Control.Monad
 import           Data.Colour.SRGB (toSRGB24, RGB(..))
-import           Data.Text (Text)
+import           Data.Text (Text, unpack)
 import qualified Data.Vector.Storable as Vector
 import           Data.StateVar (($=))
 
@@ -19,7 +19,10 @@ import Foreign.C.Types
 import Data.Time
 
 import qualified SDL
-import qualified SDL.Font as Font
+import qualified SDL.Raw.Types as SDL (Color(..))
+import qualified Graphics.UI.SDL.TTF as Font
+
+import SDLHelper
 
 import Shapes
 import Types
@@ -35,7 +38,7 @@ animate :: Text                -- ^ window title
         -> IO ()
 animate title winWidth winHeight sf = do
     SDL.initialize [SDL.InitVideo]
-    Font.initialize
+    Font.init
     window <- SDL.createWindow title windowConf
     SDL.showWindow window
 
@@ -92,14 +95,14 @@ renderObject renderer winHeight obj = setRenderAttrs >> renderShape
                                                    (V2 (toEnum x) (toEnum y)))
               Line _ _ -> SDL.drawLine renderer (P (V2 (n px) (toEnum $ winHeight - floor py))) (P (lineTargetV2 obj winHeight))
               TextRectangle x y txt -> do
-                  font <- Font.load "/usr/share/fonts/truetype/ubuntu-font-family/Ubuntu-B.ttf" 18
-                  textSurface <- Font.solid font (V4 r g b maxBound) txt
-                  Font.free font
+                  font <- Font.openFont "/usr/share/fonts/truetype/ubuntu-font-family/Ubuntu-B.ttf" 18
+                  textSurface <- fmap pSurface $ Font.renderTextSolid font (unpack txt) (SDL.Color r g b 0)
                   textTexture <- SDL.createTextureFromSurface renderer textSurface
-                  SDL.freeSurface textSurface
                   SDL.copy renderer textTexture Nothing (Just $ SDL.Rectangle (P (V2 (toEnum $ floor px)
                                                           (toEnum $ winHeight - floor py)))
                                                           (V2 (toEnum x) (toEnum y)))
+                  Font.closeFont font
+                  SDL.freeSurface textSurface
               Scene objs -> do
                   SDL.clear renderer
                   mapM_ (renderObject renderer winHeight) objs
@@ -117,21 +120,6 @@ lineTargetV2 obj winHeight = (V2 (toEnum$round (px+((sin angle)*(fromIntegral le
                        (toEnum$winHeight - (round (py+((cos angle)*(fromIntegral length_))))))
   where (px, py) = objPos obj
         Line length_ angle = objShape obj
-
-
--- | A helper for unmanaged 'Surface's, since it is not exposed by SDL itself.
-pSurface :: Ptr SDL.Raw.Surface -> Surface
-pSurface p = Surface p Nothing
-
--- copyEx :: MonadIO m   
--- => Renderer -- The rendering context
--- -> Texture  -- The source texture
--- -> Maybe (Rectangle CInt) -- The source rectangle to copy, or Nothing for the whole texture
--- -> Maybe (Rectangle CInt) -- The destination rectangle to copy to, or Nothing for the whole rendering target. The texture will be stretched to fill the given rectangle.
--- -> CDouble  -- An angle in degrees that indicates the point around which the destination rectangle will be rotated.
--- -> Maybe (Point V2 CInt)  -- The point of rotation
--- -> V2 Bool  -- Whether to flip in the X or Y axis. -- ^ The point of rotation
--- -> m () -- Whether to flip in the X or Y axis.
 
 -- | Get octant points for a circle of given radius.
 octant :: (Num a, Ord a) => a -> [(a, a)]

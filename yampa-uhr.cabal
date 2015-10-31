@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 executable yampa-uhr
     main-is:             Main.hs
-    other-modules:       Graphics, Input, Shapes, Types
+    other-modules:       Graphics, Input, Shapes, Types, SDLHelper
     other-extensions:    RecordWildCards, Arrows, OverloadedStrings
     build-depends:       base >=4.6 && <5.0
                        , Yampa >=0.9

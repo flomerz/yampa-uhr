@@ -1,3 +1,0 @@
-[submodule "libs/sdl2-ttf"]
-	path = libs/sdl2-ttf
-	url = https://github.com/sbidin/sdl2-ttf.git
